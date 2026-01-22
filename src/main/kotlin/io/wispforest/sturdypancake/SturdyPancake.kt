@@ -7,12 +7,8 @@ import net.fabricmc.loader.api.FabricLoader
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.lang.foreign.Arena
-import java.lang.foreign.FunctionDescriptor
-import java.lang.foreign.Linker
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout
-import java.lang.invoke.MethodHandles
-import java.lang.invoke.MethodType
 import java.nio.file.Files
 import kotlin.io.path.absolute
 import kotlin.io.path.pathString
@@ -21,9 +17,13 @@ object SturdyPancake : ModInitializer {
 
     val LOGGER: Logger = LoggerFactory.getLogger("sturdy-pancake")
 
-    private var rootLibraryField: MemorySegment? = null
-    val rootLibrary: MemorySegment
-        get() = rootLibraryField!!
+    private var bindingsLibraryField: MemorySegment? = null
+    val bindingsLibrary: MemorySegment
+        get() = bindingsLibraryField!!
+
+    private var bindingsResolverField: MemorySegment? = null
+    val bindingsResolver: MemorySegment
+        get() = bindingsResolverField!!
 
     fun setupNatives() {
         val nativesDir = FabricLoader.getInstance().gameDir.resolve("sturdy_natives")
@@ -55,10 +55,12 @@ object SturdyPancake : ModInitializer {
                 throw IllegalStateException("failed to initialize dart")
             }
 
-            val mainPath = FabricLoader.getInstance().gameDir.resolve("sturdy_pancake.dart")
-            val mainPathCstr = arena.allocateFrom(mainPath.absolute().pathString)
+            val isolate = DartDll_LoadScript(
+                arena.allocateFrom("/home/lily/IdeaProjects/sturdy-pancake/packages/impl_test/bin/impl_test.dart"),
+                arena.allocateFrom("/home/lily/IdeaProjects/sturdy-pancake/packages/impl_test/.dart_tool/package_config.json"),
+                MemorySegment.NULL
+            )
 
-            val isolate = DartDll_LoadScript(mainPathCstr, MemorySegment.NULL, MemorySegment.NULL)
             if (isolate == MemorySegment.NULL) {
                 throw IllegalStateException("failed to load main isolate")
             }
@@ -66,34 +68,31 @@ object SturdyPancake : ModInitializer {
             Dart_EnterIsolate(isolate)
             Dart_EnterScope()
 
-            val mainLibrary = Dart_RootLibrary()
-            rootLibraryField = mainLibrary
-
-            val nativeResolver = upcallPointerFor(
+            bindingsResolverField = upcallPointerFor(
                 NativeCallbacks::class.java,
-                "resolveExternalFunction",
+                "resolveJavaBinding",
                 MemorySegment::class.java,
-                listOf(MemorySegment::class.java, Int::class.java, Boolean::class.java),
+                listOf(MemorySegment::class.java, Int::class.java, MemorySegment::class.java),
                 C_POINTER,
-                listOf(C_POINTER, ValueLayout.JAVA_INT, ValueLayout.JAVA_BOOLEAN)
+                listOf(C_POINTER, ValueLayout.JAVA_INT, C_POINTER)
             )
 
-            val allLibraries = Dart_GetLoadedLibraries()
-            val libraryCount = arena.allocate(ValueLayout.JAVA_LONG)
-            Dart_ListLength(allLibraries, libraryCount)
+            val bindingsLibrary = Dart_NewPersistentHandle(Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("package:sturdy_pancake_bindings/src/core.dart"))))
+            bindingsLibraryField = bindingsLibrary
 
-            repeat(libraryCount.get(ValueLayout.JAVA_LONG, 0).toInt()) { idx ->
-                val library = Dart_ListGetAt(allLibraries, idx.toLong())
-                println(dartStringToJavaString(Dart_LibraryUrl(library)))
-                if (dartStringToJavaString(Dart_LibraryUrl(library)).startsWith("dart:")) {
-                    return@repeat
-                }
+            Dart_SetNativeResolver(bindingsLibrary, bindingsResolver, MemorySegment.NULL)
 
-                Dart_SetNativeResolver(library, nativeResolver, MemorySegment.NULL)
-            }
+            val builtinLibrary = Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("dart:_internal")))
+            val printClosure = Dart_GetField(SturdyPancake.bindingsLibrary, Dart_NewStringFromCString(arena.allocateFrom("_pancakePrint")))
+
+            Dart_SetField(
+                builtinLibrary,
+                Dart_NewStringFromCString(arena.allocateFrom("_printClosure")),
+                printClosure
+            )
 
             val mainResult = Dart_Invoke(
-                mainLibrary,
+                Dart_RootLibrary(),
                 Dart_NewStringFromCString(arena.allocateFrom("main")),
                 0,
                 MemorySegment.NULL
@@ -104,13 +103,17 @@ object SturdyPancake : ModInitializer {
                 LOGGER.error("failed to run main: $resultStr")
             } else {
                 val resultCstr = arena.allocate(C_POINTER)
-                Dart_StringToCString(Dart_ToString(mainResult), resultCstr)
 
-                LOGGER.info("main result: ${resultCstr.get(C_POINTER.withTargetLayout(C_POINTER), 0).getString(0)}")
+                val toStringResult = Dart_StringToCString(Dart_ToString(mainResult), resultCstr)
+                if (Dart_IsError(toStringResult)) {
+                    LOGGER.error("failed to convert main result to a string: ${Dart_GetError(toStringResult).getString(0)}")
+                } else {
+                    LOGGER.info("main result: ${resultCstr.get(C_POINTER, 0).getString(0)}")
+                }
             }
 
             Dart_ExitScope()
-            Dart_ExitIsolate()
+//            Dart_ExitIsolate()
         }
     }
 }

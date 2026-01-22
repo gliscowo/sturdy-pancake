@@ -2,8 +2,11 @@ package io.wispforest.sturdypancake
 
 import io.wispforest.sturdypancake.bindings.DartBindings.*
 import java.lang.foreign.*
+import java.lang.invoke.LambdaMetafactory
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
+import java.lang.reflect.Method
+import java.lang.reflect.Modifier
 
 fun upcallPointerFor(
     clazz: Class<*>,
@@ -67,10 +70,10 @@ fun dartBoolToJavaBoolean(dartBool: MemorySegment /* Dart_Handle */): Boolean = 
 var javaObjectTypeCache: MemorySegment? = null
 private fun isJavaObjectHandle(handle: MemorySegment /* Dart_Handle */): Boolean = Arena.ofConfined().use { arena ->
     if (javaObjectTypeCache == null) {
-        javaObjectTypeCache = Dart_GetClass(
-            SturdyPancake.rootLibrary,
+        javaObjectTypeCache = Dart_NewPersistentHandle(Dart_GetClass(
+            SturdyPancake.bindingsLibrary,
             Dart_NewStringFromCString(arena.allocateFrom("JavaObject"))
-        )
+        ))
     }
 
     val isInstance = arena.allocate(ValueLayout.JAVA_BOOLEAN)
@@ -79,8 +82,27 @@ private fun isJavaObjectHandle(handle: MemorySegment /* Dart_Handle */): Boolean
     return isInstance.get(ValueLayout.JAVA_BOOLEAN, 0)
 }
 
-fun dartHandleToJavaObject(dartHandle: MemorySegment /* Dart_Handle */): Any {
-    if (Dart_IsString(dartHandle)) {
+private fun Class<*>.isFunctionalInterface(): Boolean {
+    return isInterface && methods.count { !Modifier.isStatic(it.modifiers) && Modifier.isAbstract(it.modifiers) } == 1
+}
+
+private fun Class<*>.getFunctionalInterfaceMethod(): Method {
+    return methods.first { !Modifier.isStatic(it.modifiers) && Modifier.isAbstract(it.modifiers) }
+}
+
+data class KDartHandle(val handle: MemorySegment /* Dart_Handle */)
+
+private fun getPeer(dartHandle: MemorySegment): MemorySegment = Arena.ofConfined().use { arena ->
+    val peerOut = arena.allocate(C_POINTER)
+    Dart_GetPeer(dartHandle, peerOut)
+
+    return peerOut.get(C_POINTER, 0)
+}
+
+fun dartHandleToJavaObject(dartHandle: MemorySegment /* Dart_Handle */, targetType: Class<*>? = null): Any? {
+    if (Dart_IsNull(dartHandle)) {
+        return null
+    } else if (Dart_IsString(dartHandle)) {
         return dartStringToJavaString(dartHandle)
     } else if (Dart_IsInteger(dartHandle)) {
         return dartIntToJavaLong(dartHandle)
@@ -93,7 +115,7 @@ fun dartHandleToJavaObject(dartHandle: MemorySegment /* Dart_Handle */): Any {
             val length = arena.allocate(C_POINTER)
             Dart_ListLength(dartHandle, length)
 
-            val result = mutableListOf<Any>()
+            val result = mutableListOf<Any?>()
             repeat(length.get(ValueLayout.JAVA_LONG, 0).toInt()) { idx ->
                 result.add(dartHandleToJavaObject(Dart_ListGetAt(dartHandle, idx.toLong())))
             }
@@ -106,7 +128,7 @@ fun dartHandleToJavaObject(dartHandle: MemorySegment /* Dart_Handle */): Any {
             val keyListLength = arena.allocate(C_POINTER)
             Dart_ListLength(keyList, keyListLength)
 
-            val entries = mutableListOf<Pair<Any, Any>>()
+            val entries = mutableListOf<Pair<Any?, Any?>>()
             repeat(keyListLength.get(ValueLayout.JAVA_LONG, 0).toInt()) { idx ->
                 val keyHandle = Dart_ListGetAt(dartHandle, idx.toLong())
                 entries.add(
@@ -118,6 +140,43 @@ fun dartHandleToJavaObject(dartHandle: MemorySegment /* Dart_Handle */): Any {
 
             return entries.toMap()
         }
+    } else if (Dart_IsClosure(dartHandle) && ((targetType?.isFunctionalInterface() ?: false) || getPeer(dartHandle) != MemorySegment.NULL)) {
+        val targetClass: Class<*>
+
+        val peer = getPeer(dartHandle).getString(0)
+        if (peer != null) {
+            targetClass = Class.forName(peer)
+        } else {
+            targetClass = targetType!!
+        }
+
+        val targetMethod = targetClass.getFunctionalInterfaceMethod()
+
+        val lookup = MethodHandles.lookup()
+        val invokerHandle = lookup.findStatic(
+            ClosureInvokers::class.java,
+            "invokeUnary",
+            MethodType.methodType(
+                Any::class.java,
+                MemorySegment::class.java,
+                Any::class.java
+            )
+        )
+
+        val closureHandle = Dart_NewPersistentHandle(dartHandle)
+
+        val function = LambdaMetafactory.metafactory(
+            lookup,
+            targetMethod.name,
+            MethodType.methodType(targetClass, MemorySegment::class.java),
+            MethodType.methodType(targetMethod.returnType, targetMethod.parameterTypes),
+            invokerHandle,
+            MethodType.methodType(targetMethod.returnType, targetMethod.parameterTypes)
+        ).target.invoke(closureHandle)
+
+        return function
+    } else if (targetType == KDartHandle::class.java) {
+        return KDartHandle(dartHandle)
     } else if (isJavaObjectHandle(dartHandle)) {
         Arena.ofConfined().use { arena ->
             val args = arena.allocate(C_POINTER, 1)
@@ -125,8 +184,8 @@ fun dartHandleToJavaObject(dartHandle: MemorySegment /* Dart_Handle */): Any {
 
             Dart_EnterScope()
             val javaObjectIdHandle = Dart_Invoke(
-                SturdyPancake.rootLibrary,
-                Dart_NewStringFromCString(arena.allocateFrom("__idOfJavaObject")),
+                SturdyPancake.bindingsLibrary,
+                Dart_NewStringFromCString(arena.allocateFrom("_idOfJavaObject")),
                 1,
                 args
             )
@@ -134,6 +193,8 @@ fun dartHandleToJavaObject(dartHandle: MemorySegment /* Dart_Handle */): Any {
 
             return JavaObjectTracker.objectForId(dartIntToJavaLong(javaObjectIdHandle))
         }
+    } else if (Dart_IsError(dartHandle)) {
+        throw UnsupportedOperationException("dart error: ${Dart_GetError(dartHandle).getString(0)}")
     } else {
         throw UnsupportedOperationException("cannot convert given dart handle to a java object")
     }
@@ -189,14 +250,16 @@ fun javaObjectToDartHandle(javaObject: Any?): MemorySegment /* Dart_Handle */ {
             mapConstructorArgs.setAtIndex(C_POINTER, 1, values)
 
             val mapHandle = Dart_Invoke(
-                SturdyPancake.rootLibrary,
-                Dart_NewStringFromCString(arena.allocateFrom("__mapFromLists")),
+                SturdyPancake.bindingsLibrary,
+                Dart_NewStringFromCString(arena.allocateFrom("_mapFromLists")),
                 2,
                 mapConstructorArgs
             )
 
             return mapHandle
         }
+
+        is KDartHandle -> return javaObject.handle
 
         else -> Arena.ofConfined().use { arena ->
             val objectId = JavaObjectTracker.objectIdOf(javaObject)
@@ -205,8 +268,8 @@ fun javaObjectToDartHandle(javaObject: Any?): MemorySegment /* Dart_Handle */ {
             args.setAtIndex(C_POINTER, 0, Dart_NewInteger(objectId))
 
             val javaObjectHandle = Dart_Invoke(
-                SturdyPancake.rootLibrary,
-                Dart_NewStringFromCString(arena.allocateFrom("__javaObjectForId")),
+                SturdyPancake.bindingsLibrary,
+                Dart_NewStringFromCString(arena.allocateFrom("_javaObjectForId")),
                 1,
                 args
             )

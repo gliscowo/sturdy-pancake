@@ -1,8 +1,7 @@
 package io.wispforest.sturdypancake
 
-import io.wispforest.sturdypancake.bindings.DartBindings.C_POINTER
 import java.lang.foreign.ValueLayout
-import java.util.IdentityHashMap
+import java.util.*
 import kotlin.random.Random
 
 object JavaObjectTracker {
