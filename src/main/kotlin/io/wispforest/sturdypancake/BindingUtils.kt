@@ -28,7 +28,7 @@ fun upcallPointerFor(
         FunctionDescriptor.ofVoid(*nativeArgs.toTypedArray())
     }
 
-    return Linker.nativeLinker().upcallStub(methodHandle, descriptor, Arena.ofAuto())
+    return Linker.nativeLinker().upcallStub(methodHandle, descriptor, Arena.global())
 }
 
 fun dartStringToJavaString(dartString: MemorySegment /* Dart_Handle */): String = Arena.ofConfined().use { arena ->
