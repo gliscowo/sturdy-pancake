@@ -13,6 +13,25 @@ import java.lang.invoke.VarHandle
 import java.lang.reflect.Modifier
 
 object NativeCallbacks {
+
+    @JvmStatic
+    fun setupIsolate(): Unit = Arena.ofConfined().use { arena ->
+        if (!SturdyPancake.dartEnvironmentInitialized) {
+            return
+        }
+
+        val builtinLibrary = Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("dart:_internal")))
+        val printClosure = Dart_GetField(SturdyPancake.dartEnvironment.bindingsLibrary, Dart_NewStringFromCString(arena.allocateFrom("_pancakePrint")))
+
+        Dart_SetField(
+            builtinLibrary,
+            Dart_NewStringFromCString(arena.allocateFrom("_printClosure")),
+            printClosure
+        )
+    }
+
+    private val allocatedBindings: MutableMap<String, MemorySegment> = mutableMapOf()
+
     @JvmStatic
     fun resolveJavaBinding(
         name: MemorySegment /* Dart_Handle */,
@@ -22,6 +41,10 @@ object NativeCallbacks {
         val funcName = dartStringToJavaString(name)
         if (!funcName.startsWith("::")) {
             return MemorySegment.NULL
+        }
+
+        if (funcName in allocatedBindings) {
+            return allocatedBindings[funcName]!!
         }
 
         val targetParts = funcName.substring("::".length).split("::")
@@ -86,22 +109,24 @@ object NativeCallbacks {
         val boundHandle = MethodHandles.insertArguments(upcallHandle, 1, targetHandle)
         val callbackType = FunctionDescriptor.ofVoid(C_POINTER)
 
-        return Linker.nativeLinker().upcallStub(boundHandle, callbackType, Arena.ofAuto())
+        val stub = Linker.nativeLinker().upcallStub(boundHandle, callbackType, Arena.ofAuto());
+        allocatedBindings[funcName] = stub
+        return stub
     }
 
     @JvmStatic
     fun invokeMethodHandleWithNativeArguments(arguments: MemorySegment, targetHandle: MethodHandle) {
-        val javaArgs = mutableListOf<Any?>()
-        repeat(Dart_GetNativeArgumentCount(arguments)) { idx ->
-            javaArgs.add(
-                dartHandleToJavaObject(
-                    Dart_GetNativeArgument(arguments, idx),
-                    targetType = targetHandle.type().parameterType(idx)
-                )
-            )
-        }
-
         try {
+            val javaArgs = mutableListOf<Any?>()
+            repeat(Dart_GetNativeArgumentCount(arguments)) { idx ->
+                javaArgs.add(
+                    dartHandleToJavaObject(
+                        Dart_GetNativeArgument(arguments, idx),
+                        targetType = targetHandle.type().parameterType(idx)
+                    )
+                )
+            }
+
             val result = targetHandle.invokeWithArguments(javaArgs)
             if (targetHandle.type().returnType() != Void.TYPE) {
                 Dart_SetReturnValue(arguments, javaObjectToDartHandle(result))
@@ -122,7 +147,7 @@ object NativeCallbacks {
                 throw IllegalArgumentException("unknown library: $libraryUri")
             }
 
-            Dart_SetNativeResolver(library, SturdyPancake.bindingsResolver, MemorySegment.NULL)
+            Dart_SetNativeResolver(library, SturdyPancake.dartEnvironment.bindingsResolver, MemorySegment.NULL)
         }
     }
 
@@ -134,12 +159,7 @@ object NativeCallbacks {
     }
 
     @JvmStatic
-    fun takesAnOp(op: (Int) -> Int) {
-        SturdyPancake.LOGGER.info("operation applied to 64 results in ${op(64)}")
-    }
-
-    @JvmStatic
-    fun marshallAs(targetType: String, handle: KDartHandle): KDartHandle {
+    fun marshallAs(handle: KDartHandle, targetType: String): KDartHandle {
        Dart_SetPeer(handle.handle, Arena.global().allocateFrom(targetType))
        return handle
     }

@@ -31,14 +31,6 @@ fun upcallPointerFor(
     return Linker.nativeLinker().upcallStub(methodHandle, descriptor, Arena.ofAuto())
 }
 
-//class TypeConverter {
-//
-//    private val nativeTypeMap = mapOf(
-//        DartBindings.Dart_Type
-//    )
-//
-//}
-
 fun dartStringToJavaString(dartString: MemorySegment /* Dart_Handle */): String = Arena.ofConfined().use { arena ->
     val resultCstr = arena.allocate(C_POINTER)
     Dart_StringToCString(dartString, resultCstr)
@@ -71,7 +63,7 @@ var javaObjectTypeCache: MemorySegment? = null
 private fun isJavaObjectHandle(handle: MemorySegment /* Dart_Handle */): Boolean = Arena.ofConfined().use { arena ->
     if (javaObjectTypeCache == null) {
         javaObjectTypeCache = Dart_NewPersistentHandle(Dart_GetClass(
-            SturdyPancake.bindingsLibrary,
+            SturdyPancake.dartEnvironment.bindingsLibrary,
             Dart_NewStringFromCString(arena.allocateFrom("JavaObject"))
         ))
     }
@@ -184,7 +176,7 @@ fun dartHandleToJavaObject(dartHandle: MemorySegment /* Dart_Handle */, targetTy
 
             Dart_EnterScope()
             val javaObjectIdHandle = Dart_Invoke(
-                SturdyPancake.bindingsLibrary,
+                SturdyPancake.dartEnvironment.bindingsLibrary,
                 Dart_NewStringFromCString(arena.allocateFrom("_idOfJavaObject")),
                 1,
                 args
@@ -250,7 +242,7 @@ fun javaObjectToDartHandle(javaObject: Any?): MemorySegment /* Dart_Handle */ {
             mapConstructorArgs.setAtIndex(C_POINTER, 1, values)
 
             val mapHandle = Dart_Invoke(
-                SturdyPancake.bindingsLibrary,
+                SturdyPancake.dartEnvironment.bindingsLibrary,
                 Dart_NewStringFromCString(arena.allocateFrom("_mapFromLists")),
                 2,
                 mapConstructorArgs
@@ -268,7 +260,7 @@ fun javaObjectToDartHandle(javaObject: Any?): MemorySegment /* Dart_Handle */ {
             args.setAtIndex(C_POINTER, 0, Dart_NewInteger(objectId))
 
             val javaObjectHandle = Dart_Invoke(
-                SturdyPancake.bindingsLibrary,
+                SturdyPancake.dartEnvironment.bindingsLibrary,
                 Dart_NewStringFromCString(arena.allocateFrom("_javaObjectForId")),
                 1,
                 args

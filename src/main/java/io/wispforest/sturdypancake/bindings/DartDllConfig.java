@@ -17,6 +17,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * struct {
  *     bool start_service_isolate;
  *     int service_port;
+ *     void (*isolate_setup_callback)();
  * }
  * }
  */
@@ -29,7 +30,8 @@ public class DartDllConfig {
     private static final GroupLayout $LAYOUT = MemoryLayout.structLayout(
         DartBindings.C_BOOL.withName("start_service_isolate"),
         MemoryLayout.paddingLayout(3),
-        DartBindings.C_INT.withName("service_port")
+        DartBindings.C_INT.withName("service_port"),
+        DartBindings.C_POINTER.withName("isolate_setup_callback")
     ).withName("$anon$16:9");
 
     /**
@@ -125,6 +127,101 @@ public class DartDllConfig {
      */
     public static void service_port(MemorySegment struct, int fieldValue) {
         struct.set(service_port$LAYOUT, service_port$OFFSET, fieldValue);
+    }
+
+    /**
+     * {@snippet lang=c :
+     * void (*isolate_setup_callback)()
+     * }
+     */
+    public static class isolate_setup_callback {
+
+        isolate_setup_callback() {
+            // Should not be called directly
+        }
+
+        /**
+         * The function pointer signature, expressed as a functional interface
+         */
+        public interface Function {
+            void apply();
+        }
+
+        private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid();
+
+        /**
+         * The descriptor of this function pointer
+         */
+        public static FunctionDescriptor descriptor() {
+            return $DESC;
+        }
+
+        private static final MethodHandle UP$MH = DartBindings.upcallHandle(isolate_setup_callback.Function.class, "apply", $DESC);
+
+        /**
+         * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
+         * The lifetime of the returned segment is managed by {@code arena}
+         */
+        public static MemorySegment allocate(isolate_setup_callback.Function fi, Arena arena) {
+            return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
+        }
+
+        private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
+
+        /**
+         * Invoke the upcall stub {@code funcPtr}, with given parameters
+         */
+        public static void invoke(MemorySegment funcPtr) {
+            try {
+                 DOWN$MH.invokeExact(funcPtr);
+            } catch (Throwable ex$) {
+                throw new AssertionError("should not reach here", ex$);
+            }
+        }
+    }
+
+    private static final AddressLayout isolate_setup_callback$LAYOUT = (AddressLayout)$LAYOUT.select(groupElement("isolate_setup_callback"));
+
+    /**
+     * Layout for field:
+     * {@snippet lang=c :
+     * void (*isolate_setup_callback)()
+     * }
+     */
+    public static final AddressLayout isolate_setup_callback$layout() {
+        return isolate_setup_callback$LAYOUT;
+    }
+
+    private static final long isolate_setup_callback$OFFSET = 8;
+
+    /**
+     * Offset for field:
+     * {@snippet lang=c :
+     * void (*isolate_setup_callback)()
+     * }
+     */
+    public static final long isolate_setup_callback$offset() {
+        return isolate_setup_callback$OFFSET;
+    }
+
+    /**
+     * Getter for field:
+     * {@snippet lang=c :
+     * void (*isolate_setup_callback)()
+     * }
+     */
+    public static MemorySegment isolate_setup_callback(MemorySegment struct) {
+        return struct.get(isolate_setup_callback$LAYOUT, isolate_setup_callback$OFFSET);
+    }
+
+    /**
+     * Setter for field:
+     * {@snippet lang=c :
+     * void (*isolate_setup_callback)()
+     * }
+     */
+    public static void isolate_setup_callback(MemorySegment struct, MemorySegment fieldValue) {
+        struct.set(isolate_setup_callback$LAYOUT, isolate_setup_callback$OFFSET, fieldValue);
     }
 
     /**

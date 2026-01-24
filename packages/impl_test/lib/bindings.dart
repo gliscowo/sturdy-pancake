@@ -22,9 +22,3 @@ extension type ClientSendMessageEvents._(JavaObject _this) {
   @pragma('vm:external-name', '::net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents::CHAT::get')
   external static Event<void Function(String)> get chat;
 }
-
-@pragma('vm:external-name', '::io.wispforest.sturdypancake.NativeCallbacks::takesAnOp')
-external void takesAnOp(int Function(int) consumer);
-
-@pragma('vm:external-name', '::io.wispforest.sturdypancake.NativeCallbacks::marshallAs')
-external T marshallAs<T extends Function>(String targetType, T theFunction);

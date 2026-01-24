@@ -17,13 +17,11 @@ object SturdyPancake : ModInitializer {
 
     val LOGGER: Logger = LoggerFactory.getLogger("sturdy-pancake")
 
-    private var bindingsLibraryField: MemorySegment? = null
-    val bindingsLibrary: MemorySegment
-        get() = bindingsLibraryField!!
+    lateinit var dartEnvironment: DartEnvironment
+        private set
 
-    private var bindingsResolverField: MemorySegment? = null
-    val bindingsResolver: MemorySegment
-        get() = bindingsResolverField!!
+    val dartEnvironmentInitialized: Boolean
+        get() = ::dartEnvironment.isInitialized
 
     fun setupNatives() {
         val nativesDir = FabricLoader.getInstance().gameDir.resolve("sturdy_natives")
@@ -50,6 +48,14 @@ object SturdyPancake : ModInitializer {
             val config = DartDllConfig.allocate(arena)
             DartDllConfig.start_service_isolate(config, false)
             DartDllConfig.service_port(config, 6767)
+            DartDllConfig.isolate_setup_callback(config, upcallPointerFor(
+                NativeCallbacks::class.java,
+                "setupIsolate",
+                Void.TYPE,
+                listOf(),
+                null,
+                listOf()
+            ))
 
             if (!DartDll_Initialize(config)) {
                 throw IllegalStateException("failed to initialize dart")
@@ -65,10 +71,7 @@ object SturdyPancake : ModInitializer {
                 throw IllegalStateException("failed to load main isolate")
             }
 
-            Dart_EnterIsolate(isolate)
-            Dart_EnterScope()
-
-            bindingsResolverField = upcallPointerFor(
+            val bindingsResolver = upcallPointerFor(
                 NativeCallbacks::class.java,
                 "resolveJavaBinding",
                 MemorySegment::class.java,
@@ -77,39 +80,29 @@ object SturdyPancake : ModInitializer {
                 listOf(C_POINTER, ValueLayout.JAVA_INT, C_POINTER)
             )
 
-            val bindingsLibrary = Dart_NewPersistentHandle(Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("package:sturdy_pancake_bindings/src/core.dart"))))
-            bindingsLibraryField = bindingsLibrary
+            Dart_EnterIsolate(isolate)
+            Dart_EnterScope()
 
+            val bindingsLibrary = Dart_NewPersistentHandle(Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("package:sturdy_pancake_bindings/src/core.dart"))))
             Dart_SetNativeResolver(bindingsLibrary, bindingsResolver, MemorySegment.NULL)
 
-            val builtinLibrary = Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("dart:_internal")))
-            val printClosure = Dart_GetField(SturdyPancake.bindingsLibrary, Dart_NewStringFromCString(arena.allocateFrom("_pancakePrint")))
-
-            Dart_SetField(
-                builtinLibrary,
-                Dart_NewStringFromCString(arena.allocateFrom("_printClosure")),
-                printClosure
+            dartEnvironment = DartEnvironment(
+                bindingsLibrary,
+                bindingsResolver
             )
 
-            val mainResult = Dart_Invoke(
+            NativeCallbacks.setupIsolate()
+
+            val entryPointResult = Dart_Invoke(
                 Dart_RootLibrary(),
                 Dart_NewStringFromCString(arena.allocateFrom("main")),
                 0,
                 MemorySegment.NULL
             )
 
-            if (Dart_IsError(mainResult)) {
-                val resultStr = Dart_GetError(mainResult).getString(0)
-                LOGGER.error("failed to run main: $resultStr")
-            } else {
-                val resultCstr = arena.allocate(C_POINTER)
-
-                val toStringResult = Dart_StringToCString(Dart_ToString(mainResult), resultCstr)
-                if (Dart_IsError(toStringResult)) {
-                    LOGGER.error("failed to convert main result to a string: ${Dart_GetError(toStringResult).getString(0)}")
-                } else {
-                    LOGGER.info("main result: ${resultCstr.get(C_POINTER, 0).getString(0)}")
-                }
+            if (Dart_IsError(entryPointResult)) {
+                val resultStr = Dart_GetError(entryPointResult).getString(0)
+                LOGGER.error("failed to run entry point: $resultStr")
             }
 
             Dart_ExitScope()

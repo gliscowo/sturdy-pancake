@@ -1,29 +1,19 @@
-import 'dart:async';
-import 'dart:ffi';
 import 'dart:isolate';
 
 import 'package:impl_test/bindings.dart';
 import 'package:sturdy_pancake_bindings/sturdy_pancake_bindings.dart';
 
-int main() {
+void main() {
   setupBindingsResolver(['package:impl_test/bindings.dart']);
 
-  // Isolate.run(() async {
-  //   while (true) {
-  //     await Future.delayed(const Duration(seconds: 1));
-  //     print(DateTime.now());
-  //   }
-  // });
+  Isolate.run(() async {
+    await Future.delayed(const Duration(seconds: 5));
+    print(Minecraft.getInstance().gameProfile.name);
+  });
 
-  for (var i = 0; i < 100; i++) {
-    print('[$i] game profile name: ${Minecraft.getInstance().gameProfile.name}');
-  }
-
-  // ClientSendMessageEvents.chat.register(marshallAs(
-  //   r'net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents$Chat',
-  //   (message) => print('chat message: $message')
-  // ));
-
-  return 0;
+  ClientSendMessageEvents.chat.register(
+    (message) {
+      print('chat message: $message');
+    }.marshallAs(r'net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents$Chat'),
+  );
 }
-

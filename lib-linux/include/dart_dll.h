@@ -16,6 +16,7 @@ typedef struct _Dart_Handle* Dart_Handle;
 typedef struct {
   bool start_service_isolate;
   int service_port;
+  void (*isolate_setup_callback)();
 } DartDllConfig;
 
 // Initialize Dart
