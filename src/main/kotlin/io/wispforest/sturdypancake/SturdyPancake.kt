@@ -1,5 +1,6 @@
 package io.wispforest.sturdypancake
 
+import io.wispforest.owo.ui.event.ClientRenderCallback
 import io.wispforest.sturdypancake.bindings.DartBindings.*
 import io.wispforest.sturdypancake.bindings.DartDllConfig
 import net.fabricmc.api.ModInitializer
@@ -48,26 +49,28 @@ object SturdyPancake : ModInitializer {
             val config = DartDllConfig.allocate(arena)
             DartDllConfig.start_service_isolate(config, false)
             DartDllConfig.service_port(config, 6767)
-            DartDllConfig.isolate_setup_callback(config, upcallPointerFor(
-                NativeCallbacks::class.java,
-                "setupIsolate",
-                Void.TYPE,
-                listOf(),
-                null,
-                listOf()
-            ))
+            DartDllConfig.isolate_setup_callback(
+                config, upcallPointerFor(
+                    NativeCallbacks::class.java,
+                    "setupIsolate",
+                    Void.TYPE,
+                    listOf(),
+                    null,
+                    listOf()
+                )
+            )
 
             if (!DartDll_Initialize(config)) {
                 throw IllegalStateException("failed to initialize dart")
             }
 
-            val isolate = DartDll_LoadScript(
+            val mainIsolate = DartDll_LoadScript(
                 arena.allocateFrom("/home/lily/IdeaProjects/sturdy-pancake/packages/impl_test/bin/impl_test.dart"),
                 arena.allocateFrom("/home/lily/IdeaProjects/sturdy-pancake/packages/impl_test/.dart_tool/package_config.json"),
                 MemorySegment.NULL
             )
 
-            if (isolate == MemorySegment.NULL) {
+            if (mainIsolate == MemorySegment.NULL) {
                 throw IllegalStateException("failed to load main isolate")
             }
 
@@ -80,13 +83,26 @@ object SturdyPancake : ModInitializer {
                 listOf(C_POINTER, ValueLayout.JAVA_INT, C_POINTER)
             )
 
-            Dart_EnterIsolate(isolate)
+            Dart_EnterIsolate(mainIsolate)
             Dart_EnterScope()
 
-            val bindingsLibrary = Dart_NewPersistentHandle(Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("package:sturdy_pancake_bindings/src/core.dart"))))
+            Dart_SetMessageNotifyCallback(
+                upcallPointerFor(
+                    NativeCallbacks::class.java,
+                    "newIsolateMessage",
+                    Void.TYPE,
+                    listOf(MemorySegment::class.java),
+                    null,
+                    listOf(C_POINTER)
+                )
+            )
+
+            val bindingsLibrary =
+                Dart_NewPersistentHandle(Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("package:sturdy_pancake_bindings/src/core.dart"))))
             Dart_SetNativeResolver(bindingsLibrary, bindingsResolver, MemorySegment.NULL)
 
             dartEnvironment = DartEnvironment(
+                mainIsolate,
                 bindingsLibrary,
                 bindingsResolver
             )
@@ -105,8 +121,20 @@ object SturdyPancake : ModInitializer {
                 LOGGER.error("failed to run entry point: $resultStr")
             }
 
+            dartEnvironment.processOutstandingMainIsolateMessages()
+
             Dart_ExitScope()
-//            Dart_ExitIsolate()
+            Dart_ExitIsolate()
+        }
+
+        ClientRenderCallback.BEFORE_SWAP.register {
+            if (!dartEnvironment.mainIsolateHasOutstandingMessages) {
+                return@register
+            }
+
+            dartEnvironment.runInMainIsolate {
+                processOutstandingMainIsolateMessages()
+            }
         }
     }
 }

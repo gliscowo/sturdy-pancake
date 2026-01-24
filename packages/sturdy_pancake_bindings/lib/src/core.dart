@@ -7,26 +7,29 @@ external void setupBindingsResolver(List<String> libraryUris);
 
 // ---
 
-extension Marshalling<T extends Function> on T {
-  @pragma('vm:external-name', '::io.wispforest.sturdypancake.NativeCallbacks::marshallAs')
-  external T marshallAs(String targetType);
-}
+@pragma('vm:external-name', '::io.wispforest.sturdypancake.NativeCallbacks::marshallAs')
+external T lambda<T extends Function>(T fn, String targetType);
 
 // ---
 
 @entryPoint
+@pragma('vm:isolate-unsendable')
 class JavaObject implements Finalizable {
   final int id;
 
   JavaObject(this.id) {
-    finalizer.attach(this, Pointer.fromAddress(id));
+    _finalizer.attach(this, Pointer.fromAddress(id));
+    _increaseRefCount(id);
   }
 
   static final Map<int, JavaObject> _allocatedInstances = {};
-  static final finalizer = NativeFinalizer(Pointer.fromAddress(_fetchFinalizerPointer()).cast());
+  static final _finalizer = NativeFinalizer(Pointer.fromAddress(_fetchFinalizerPointer()).cast());
 
   @pragma('vm:external-name', '::io.wispforest.sturdypancake.JavaObjectTracker::fetchFinalizerPointer')
   external static int _fetchFinalizerPointer();
+
+  @pragma('vm:external-name', '::io.wispforest.sturdypancake.JavaObjectTracker::increaseRefCount')
+  external static void _increaseRefCount(int id);
 }
 
 // ---

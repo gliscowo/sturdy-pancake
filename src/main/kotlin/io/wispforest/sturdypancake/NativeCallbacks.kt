@@ -20,11 +20,11 @@ object NativeCallbacks {
             return
         }
 
-        val builtinLibrary = Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("dart:_internal")))
+        val internalLibrary = Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("dart:_internal")))
         val printClosure = Dart_GetField(SturdyPancake.dartEnvironment.bindingsLibrary, Dart_NewStringFromCString(arena.allocateFrom("_pancakePrint")))
 
         Dart_SetField(
-            builtinLibrary,
+            internalLibrary,
             Dart_NewStringFromCString(arena.allocateFrom("_printClosure")),
             printClosure
         )
@@ -79,6 +79,15 @@ object NativeCallbacks {
             targetHandle = MethodHandles.lookup().unreflectVarHandle(theField).toMethodHandle(
                 if (accessMode == "get") VarHandle.AccessMode.GET else VarHandle.AccessMode.SET
             )
+        } else if (targetName == "<init>") {
+            val theConstructor = theClass.constructors.first { it.parameterCount == numArgs }
+
+            if (theConstructor == null) {
+                SturdyPancake.LOGGER.error("unable to bind constructor $targetName on class $className")
+                return MemorySegment.NULL
+            }
+
+            targetHandle = MethodHandles.lookup().unreflectConstructor(theConstructor)
         } else {
             val theMethod = theClass.methods.first {
                 var parameterCount = it.parameterTypes.size
@@ -88,6 +97,8 @@ object NativeCallbacks {
 
                 return@first it.name == targetName && parameterCount == numArgs
             }
+
+
             if (theMethod == null) {
                 SturdyPancake.LOGGER.error("unable to bind method $targetName on class $className")
                 return MemorySegment.NULL
@@ -115,6 +126,11 @@ object NativeCallbacks {
     }
 
     @JvmStatic
+    fun newIsolateMessage(isolate: MemorySegment /* Dart_Isolate */) {
+        SturdyPancake.dartEnvironment.outstandingMainIsolateMessages++
+    }
+
+    @JvmStatic
     fun invokeMethodHandleWithNativeArguments(arguments: MemorySegment, targetHandle: MethodHandle) {
         try {
             val javaArgs = mutableListOf<Any?>()
@@ -134,7 +150,7 @@ object NativeCallbacks {
         } catch (e: Throwable) {
             SturdyPancake.LOGGER.error("failed to run method handle with native arguments", e)
             Arena.ofConfined().use { arena ->
-                Dart_SetReturnValue(arguments, Dart_NewApiError(arena.allocateFrom(e.message)))
+                Dart_SetReturnValue(arguments, Dart_NewApiError(arena.allocateFrom(e.message ?: "no exception message")))
             }
         }
     }
