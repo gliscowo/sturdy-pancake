@@ -17561,143 +17561,115 @@ public class DartBindings {
         }
     }
 
+    private static class DartDll_DrainMicrotaskQueue {
+        public static final FunctionDescriptor DESC = FunctionDescriptor.of(
+            DartBindings.C_POINTER    );
+
+        public static final MemorySegment ADDR = DartBindings.findOrThrow("DartDll_DrainMicrotaskQueue");
+
+        public static final MethodHandle HANDLE = Linker.nativeLinker().downcallHandle(ADDR, DESC);
+    }
+
     /**
-     * Variadic invoker class for:
+     * Function descriptor for:
      * {@snippet lang=c :
      * Dart_Handle DartDll_DrainMicrotaskQueue()
      * }
      */
-    public static class DartDll_DrainMicrotaskQueue {
-        private static final FunctionDescriptor BASE_DESC = FunctionDescriptor.of(
-                DartBindings.C_POINTER        );
-        private static final MemorySegment ADDR = DartBindings.findOrThrow("DartDll_DrainMicrotaskQueue");
-
-        private final MethodHandle handle;
-        private final FunctionDescriptor descriptor;
-        private final MethodHandle spreader;
-
-        private DartDll_DrainMicrotaskQueue(MethodHandle handle, FunctionDescriptor descriptor, MethodHandle spreader) {
-            this.handle = handle;
-            this.descriptor = descriptor;
-            this.spreader = spreader;
-        }
-
-        /**
-         * Variadic invoker factory for:
-         * {@snippet lang=c :
-         * Dart_Handle DartDll_DrainMicrotaskQueue()
-         * }
-         */
-        public static DartDll_DrainMicrotaskQueue makeInvoker(MemoryLayout... layouts) {
-            FunctionDescriptor desc$ = BASE_DESC.appendArgumentLayouts(layouts);
-            Linker.Option fva$ = Linker.Option.firstVariadicArg(BASE_DESC.argumentLayouts().size());
-            var mh$ = Linker.nativeLinker().downcallHandle(ADDR, desc$, fva$);
-            var spreader$ = mh$.asSpreader(Object[].class, layouts.length);
-            return new DartDll_DrainMicrotaskQueue(mh$, desc$, spreader$);
-        }
-
-        /**
-         * {@return the address}
-         */
-        public static MemorySegment address() {
-            return ADDR;
-        }
-
-        /**
-         * {@return the specialized method handle}
-         */
-        public MethodHandle handle() {
-            return handle;
-        }
-
-        /**
-         * {@return the specialized descriptor}
-         */
-        public FunctionDescriptor descriptor() {
-            return descriptor;
-        }
-
-        public MemorySegment apply(Object... x0) {
-            try {
-                if (TRACE_DOWNCALLS) {
-                    traceDowncall("DartDll_DrainMicrotaskQueue", x0);
-                }
-                return (MemorySegment) spreader.invokeExact(x0);
-            } catch(IllegalArgumentException | ClassCastException ex$)  {
-                throw ex$; // rethrow IAE from passing wrong number/type of args
-            } catch (Throwable ex$) {
-               throw new AssertionError("should not reach here", ex$);
-            }
-        }
+    public static FunctionDescriptor DartDll_DrainMicrotaskQueue$descriptor() {
+        return DartDll_DrainMicrotaskQueue.DESC;
     }
 
     /**
-     * Variadic invoker class for:
+     * Downcall method handle for:
+     * {@snippet lang=c :
+     * Dart_Handle DartDll_DrainMicrotaskQueue()
+     * }
+     */
+    public static MethodHandle DartDll_DrainMicrotaskQueue$handle() {
+        return DartDll_DrainMicrotaskQueue.HANDLE;
+    }
+
+    /**
+     * Address for:
+     * {@snippet lang=c :
+     * Dart_Handle DartDll_DrainMicrotaskQueue()
+     * }
+     */
+    public static MemorySegment DartDll_DrainMicrotaskQueue$address() {
+        return DartDll_DrainMicrotaskQueue.ADDR;
+    }
+
+    /**
+     * {@snippet lang=c :
+     * Dart_Handle DartDll_DrainMicrotaskQueue()
+     * }
+     */
+    public static MemorySegment DartDll_DrainMicrotaskQueue() {
+        var mh$ = DartDll_DrainMicrotaskQueue.HANDLE;
+        try {
+            if (TRACE_DOWNCALLS) {
+                traceDowncall("DartDll_DrainMicrotaskQueue");
+            }
+            return (MemorySegment)mh$.invokeExact();
+        } catch (Throwable ex$) {
+           throw new AssertionError("should not reach here", ex$);
+        }
+    }
+
+    private static class DartDll_Shutdown {
+        public static final FunctionDescriptor DESC = FunctionDescriptor.of(
+            DartBindings.C_BOOL    );
+
+        public static final MemorySegment ADDR = DartBindings.findOrThrow("DartDll_Shutdown");
+
+        public static final MethodHandle HANDLE = Linker.nativeLinker().downcallHandle(ADDR, DESC);
+    }
+
+    /**
+     * Function descriptor for:
      * {@snippet lang=c :
      * bool DartDll_Shutdown()
      * }
      */
-    public static class DartDll_Shutdown {
-        private static final FunctionDescriptor BASE_DESC = FunctionDescriptor.of(
-                DartBindings.C_BOOL        );
-        private static final MemorySegment ADDR = DartBindings.findOrThrow("DartDll_Shutdown");
+    public static FunctionDescriptor DartDll_Shutdown$descriptor() {
+        return DartDll_Shutdown.DESC;
+    }
 
-        private final MethodHandle handle;
-        private final FunctionDescriptor descriptor;
-        private final MethodHandle spreader;
+    /**
+     * Downcall method handle for:
+     * {@snippet lang=c :
+     * bool DartDll_Shutdown()
+     * }
+     */
+    public static MethodHandle DartDll_Shutdown$handle() {
+        return DartDll_Shutdown.HANDLE;
+    }
 
-        private DartDll_Shutdown(MethodHandle handle, FunctionDescriptor descriptor, MethodHandle spreader) {
-            this.handle = handle;
-            this.descriptor = descriptor;
-            this.spreader = spreader;
-        }
+    /**
+     * Address for:
+     * {@snippet lang=c :
+     * bool DartDll_Shutdown()
+     * }
+     */
+    public static MemorySegment DartDll_Shutdown$address() {
+        return DartDll_Shutdown.ADDR;
+    }
 
-        /**
-         * Variadic invoker factory for:
-         * {@snippet lang=c :
-         * bool DartDll_Shutdown()
-         * }
-         */
-        public static DartDll_Shutdown makeInvoker(MemoryLayout... layouts) {
-            FunctionDescriptor desc$ = BASE_DESC.appendArgumentLayouts(layouts);
-            Linker.Option fva$ = Linker.Option.firstVariadicArg(BASE_DESC.argumentLayouts().size());
-            var mh$ = Linker.nativeLinker().downcallHandle(ADDR, desc$, fva$);
-            var spreader$ = mh$.asSpreader(Object[].class, layouts.length);
-            return new DartDll_Shutdown(mh$, desc$, spreader$);
-        }
-
-        /**
-         * {@return the address}
-         */
-        public static MemorySegment address() {
-            return ADDR;
-        }
-
-        /**
-         * {@return the specialized method handle}
-         */
-        public MethodHandle handle() {
-            return handle;
-        }
-
-        /**
-         * {@return the specialized descriptor}
-         */
-        public FunctionDescriptor descriptor() {
-            return descriptor;
-        }
-
-        public boolean apply(Object... x0) {
-            try {
-                if (TRACE_DOWNCALLS) {
-                    traceDowncall("DartDll_Shutdown", x0);
-                }
-                return (boolean) spreader.invokeExact(x0);
-            } catch(IllegalArgumentException | ClassCastException ex$)  {
-                throw ex$; // rethrow IAE from passing wrong number/type of args
-            } catch (Throwable ex$) {
-               throw new AssertionError("should not reach here", ex$);
+    /**
+     * {@snippet lang=c :
+     * bool DartDll_Shutdown()
+     * }
+     */
+    public static boolean DartDll_Shutdown() {
+        var mh$ = DartDll_Shutdown.HANDLE;
+        try {
+            if (TRACE_DOWNCALLS) {
+                traceDowncall("DartDll_Shutdown");
             }
+            return (boolean)mh$.invokeExact();
+        } catch (Throwable ex$) {
+           throw new AssertionError("should not reach here", ex$);
         }
     }
     private static final long _POSIX_C_SOURCE = 200809L;

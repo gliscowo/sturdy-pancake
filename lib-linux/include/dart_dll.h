@@ -40,7 +40,7 @@ DART_DLL_EXPORT Dart_Handle DartDll_RunMain(Dart_Handle library);
 // or Futures, and using Dart_Invoke over DartDll_RunMain or Dart_RunLoop.
 // Otherwise you're not giving the main isolate the opportunity to drain the task queue
 // and complete pending Futures.
-DART_DLL_EXPORT Dart_Handle DartDll_DrainMicrotaskQueue();
+DART_DLL_EXPORT Dart_Handle DartDll_DrainMicrotaskQueue(void);
 
 // Shutdown Dart
-DART_DLL_EXPORT bool DartDll_Shutdown();
+DART_DLL_EXPORT bool DartDll_Shutdown(void);
