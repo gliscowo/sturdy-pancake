@@ -175,8 +175,8 @@ object NativeCallbacks {
     }
 
     @JvmStatic
-    fun marshallAs(handle: KDartHandle, targetType: String): KDartHandle {
-       Dart_SetPeer(handle.handle, Arena.global().allocateFrom(targetType))
+    fun setLambdaType(handle: KDartHandle, targetType: String): KDartHandle {
+       Dart_SetPeer(handle.pointer, Arena.global().allocateFrom(targetType))
        return handle
     }
 }

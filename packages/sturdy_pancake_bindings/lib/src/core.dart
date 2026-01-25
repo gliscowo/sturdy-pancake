@@ -7,7 +7,7 @@ external void setupBindingsResolver(List<String> libraryUris);
 
 // ---
 
-@pragma('vm:external-name', '::io.wispforest.sturdypancake.NativeCallbacks::marshallAs')
+@pragma('vm:external-name', '::io.wispforest.sturdypancake.NativeCallbacks::setLambdaType')
 external T lambda<T extends Function>(T fn, String targetType);
 
 // ---

@@ -84,7 +84,7 @@ private fun Class<*>.getFunctionalInterfaceMethod(): Method {
     return methods.first { !Modifier.isStatic(it.modifiers) && Modifier.isAbstract(it.modifiers) }
 }
 
-data class KDartHandle(val handle: MemorySegment /* Dart_Handle */)
+data class KDartHandle(val pointer: MemorySegment /* Dart_Handle */)
 
 private fun getPeer(dartHandle: MemorySegment): MemorySegment = Arena.ofConfined().use { arena ->
     val peerOut = arena.allocate(C_POINTER)
@@ -260,7 +260,7 @@ fun javaObjectToDartHandle(javaObject: Any?): MemorySegment /* Dart_Handle */ {
             return mapHandle
         }
 
-        is KDartHandle -> return javaObject.handle
+        is KDartHandle -> return javaObject.pointer
 
         else -> Arena.ofConfined().use { arena ->
             val objectId = JavaObjectTracker.objectIdOf(javaObject)
