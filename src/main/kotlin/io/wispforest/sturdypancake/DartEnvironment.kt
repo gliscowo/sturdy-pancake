@@ -9,15 +9,24 @@ data class DartEnvironment(
     val bindingsResolver: MemorySegment,
     var outstandingMainIsolateMessages: Int = 0
 ) {
-    fun runInMainIsolate(block: DartEnvironment.() -> Unit) {
-        try {
-            Dart_EnterIsolate(mainIsolate)
-            Dart_EnterScope()
+    fun <T> runInMainIsolate(block: DartEnvironment.() -> T): T {
+        if (Dart_CurrentIsolate() == mainIsolate) {
+            try {
+                Dart_EnterScope()
+                return block(this)
+            } finally {
+                Dart_ExitScope()
+            }
+        } else {
+            try {
+                Dart_EnterIsolate(mainIsolate)
+                Dart_EnterScope()
 
-            block(this)
-        } finally {
-            Dart_ExitScope()
-            Dart_ExitIsolate()
+                return block(this)
+            } finally {
+                Dart_ExitScope()
+                Dart_ExitIsolate()
+            }
         }
     }
 

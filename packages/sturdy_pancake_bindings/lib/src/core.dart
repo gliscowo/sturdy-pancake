@@ -14,10 +14,10 @@ external T lambda<T extends Function>(T fn, String targetType);
 
 @entryPoint
 @pragma('vm:isolate-unsendable')
-class JavaObject implements Finalizable {
+final class JavaObject implements Finalizable {
   final int id;
 
-  JavaObject(this.id) {
+  JavaObject._(this.id) {
     _finalizer.attach(this, Pointer.fromAddress(id));
     _increaseRefCount(id);
   }
@@ -43,7 +43,7 @@ void _pancakePrint(String line) => _printToLogger(line);
 // ---
 
 @entryPoint
-JavaObject _javaObjectForId(int id) => JavaObject._allocatedInstances[id] ??= JavaObject(id);
+JavaObject _javaObjectForId(int id) => JavaObject._allocatedInstances[id] ??= JavaObject._(id);
 
 @entryPoint
 int _idOfJavaObject(JavaObject object) => object.id;

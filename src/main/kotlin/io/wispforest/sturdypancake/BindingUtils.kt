@@ -62,10 +62,12 @@ fun dartBoolToJavaBoolean(dartBool: MemorySegment /* Dart_Handle */): Boolean = 
 var javaObjectTypeCache: MemorySegment? = null
 private fun isJavaObjectHandle(handle: MemorySegment /* Dart_Handle */): Boolean = Arena.ofConfined().use { arena ->
     if (javaObjectTypeCache == null) {
-        javaObjectTypeCache = Dart_NewPersistentHandle(Dart_GetClass(
-            SturdyPancake.dartEnvironment.bindingsLibrary,
-            Dart_NewStringFromCString(arena.allocateFrom("JavaObject"))
-        ))
+        javaObjectTypeCache = Dart_NewPersistentHandle(
+            Dart_GetClass(
+                SturdyPancake.dartEnvironment.bindingsLibrary,
+                Dart_NewStringFromCString(arena.allocateFrom("JavaObject"))
+            )
+        )
     }
 
     val isInstance = arena.allocate(ValueLayout.JAVA_BOOLEAN)
@@ -132,26 +134,33 @@ fun dartHandleToJavaObject(dartHandle: MemorySegment /* Dart_Handle */, targetTy
 
             return entries.toMap()
         }
-    } else if (Dart_IsClosure(dartHandle) && ((targetType?.isFunctionalInterface() ?: false) || getPeer(dartHandle) != MemorySegment.NULL)) {
+    } else if (Dart_IsClosure(dartHandle) && ((targetType?.isFunctionalInterface()
+            ?: false) || getPeer(dartHandle) != MemorySegment.NULL)
+    ) {
         val targetClass: Class<*>
 
-        val peer = getPeer(dartHandle).getString(0)
-        if (peer != null) {
-            targetClass = Class.forName(peer)
+        val peer = getPeer(dartHandle)
+        if (peer != MemorySegment.NULL) {
+            targetClass = Class.forName(peer.getString(0))
         } else {
             targetClass = targetType!!
         }
 
         val targetMethod = targetClass.getFunctionalInterfaceMethod()
+        val targetArgCount = targetMethod.parameterCount
+
+        val argumentTypes = mutableListOf<Class<*>>(MemorySegment::class.java).let {
+            it.addAll((0..<targetArgCount).map { Any::class.java })
+            return@let it.toTypedArray()
+        }
 
         val lookup = MethodHandles.lookup()
         val invokerHandle = lookup.findStatic(
             ClosureInvokers::class.java,
-            "invokeUnary",
+            "invoke$targetArgCount",
             MethodType.methodType(
                 Any::class.java,
-                MemorySegment::class.java,
-                Any::class.java
+                argumentTypes
             )
         )
 
