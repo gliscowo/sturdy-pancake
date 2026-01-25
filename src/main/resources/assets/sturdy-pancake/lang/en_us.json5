@@ -1,0 +1,13 @@
+{
+  "text.sturdypancake.{}": {
+    "prefix": [
+      {text: "[", color: "gray"},
+      {text: "sturdy pancake", color: "#faa703"},
+      {text: "] ", color: "gray"},
+    ],
+    "hot_reload_complete": [
+      {translate: "text.sturdypancake.prefix"},
+      "dart sources reloaded"
+    ]
+  },
+}

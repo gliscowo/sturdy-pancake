@@ -4,6 +4,8 @@ import io.wispforest.owo.ui.event.ClientRenderCallback
 import io.wispforest.sturdypancake.bindings.DartBindings.*
 import io.wispforest.sturdypancake.bindings.DartDllConfig
 import net.fabricmc.api.ModInitializer
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.loader.api.FabricLoader
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -47,14 +49,11 @@ object SturdyPancake : ModInitializer {
 
         Arena.ofConfined().use { arena ->
             val config = DartDllConfig.allocate(arena)
-            DartDllConfig.start_service_isolate(config, false)
+            DartDllConfig.start_service_isolate(config, true)
             DartDllConfig.service_port(config, 6767)
             DartDllConfig.isolate_setup_callback(
                 config, upcallPointerFor(
-                    NativeCallbacks::class.java,
-                    "setupIsolate",
-                    Void.TYPE,
-                    listOf(),
+                    NativeCallbacks::setupIsolate,
                     null,
                     listOf()
                 )
@@ -75,10 +74,7 @@ object SturdyPancake : ModInitializer {
             }
 
             val bindingsResolver = upcallPointerFor(
-                NativeCallbacks::class.java,
-                "resolveJavaBinding",
-                MemorySegment::class.java,
-                listOf(MemorySegment::class.java, Int::class.java, MemorySegment::class.java),
+                NativeCallbacks::resolveJavaBinding,
                 C_POINTER,
                 listOf(C_POINTER, ValueLayout.JAVA_INT, C_POINTER)
             )
@@ -88,10 +84,7 @@ object SturdyPancake : ModInitializer {
 
             Dart_SetMessageNotifyCallback(
                 upcallPointerFor(
-                    NativeCallbacks::class.java,
-                    "newIsolateMessage",
-                    Void.TYPE,
-                    listOf(MemorySegment::class.java),
+                    NativeCallbacks::newIsolateMessage,
                     null,
                     listOf(C_POINTER)
                 )
@@ -109,13 +102,7 @@ object SturdyPancake : ModInitializer {
 
             NativeCallbacks.setupIsolate()
 
-            val entryPointResult = Dart_Invoke(
-                Dart_RootLibrary(),
-                Dart_NewStringFromCString(arena.allocateFrom("main")),
-                0,
-                MemorySegment.NULL
-            )
-
+            val entryPointResult = dartEnvironment.invoke("main", target = Dart_RootLibrary())
             if (Dart_IsError(entryPointResult)) {
                 val resultStr = Dart_GetError(entryPointResult).getString(0)
                 LOGGER.error("failed to run entry point: $resultStr")
@@ -135,6 +122,16 @@ object SturdyPancake : ModInitializer {
             dartEnvironment.runInMainIsolate {
                 processOutstandingMainIsolateMessages()
             }
+        }
+
+        ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
+            dispatcher.register(ClientCommandManager.literal("reload_dart_sources").executes {
+                dartEnvironment.runInMainIsolate {
+                    invoke(DartSymbols.Bindings.REQUEST_HOT_RELOAD)
+                }
+
+                return@executes 0
+            })
         }
     }
 }

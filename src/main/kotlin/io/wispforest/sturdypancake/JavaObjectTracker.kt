@@ -54,10 +54,7 @@ object JavaObjectTracker {
 
     @JvmStatic
     fun fetchFinalizerPointer(): Long = upcallPointerFor(
-        JavaObjectTracker::class.java,
-        "decreaseRefCount",
-        Void.TYPE,
-        listOf(Long::class.java),
+        JavaObjectTracker::decreaseRefCount,
         null,
         listOf(ValueLayout.JAVA_LONG)
     ).address()

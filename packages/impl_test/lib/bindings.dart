@@ -50,9 +50,14 @@ extension type Identifier._(JavaObject _) {
 
 extension type Widget._(JavaObject _) {}
 
-extension type Center._(JavaObject _) implements Widget {
-  @pragma('vm:external-name', '::io.wispforest.owo.braid.widgets.basic.Center::<init>')
-  external factory Center(Widget child);
+extension type Alignment._(JavaObject _) {
+  @pragma('vm:external-name', '::io.wispforest.owo.braid.core.Alignment::TOP::get')
+  external static Alignment get top;
+}
+
+extension type Align._(JavaObject _) implements Widget {
+  @pragma('vm:external-name', '::io.wispforest.owo.braid.widgets.basic.Align::<init>')
+  external factory Align(Alignment alignment, Widget child);
 }
 
 extension type Label._(JavaObject _) implements Widget {

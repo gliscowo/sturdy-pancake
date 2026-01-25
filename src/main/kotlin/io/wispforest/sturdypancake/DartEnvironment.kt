@@ -1,6 +1,7 @@
 package io.wispforest.sturdypancake
 
 import io.wispforest.sturdypancake.bindings.DartBindings.*
+import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 
 data class DartEnvironment(
@@ -28,6 +29,39 @@ data class DartEnvironment(
                 Dart_ExitIsolate()
             }
         }
+    }
+
+//    fun <T> scope(block: DartEnvironment.() -> T): T {
+//        try {
+//            Dart_EnterScope()
+//            return block()
+//        } finally {
+//            Dart_ExitScope()
+//        }
+//    }
+
+    fun invoke(
+        symbol: String,
+        vararg arguments: MemorySegment,
+        target: MemorySegment = bindingsLibrary
+    ): MemorySegment = Arena.ofConfined().use { arena ->
+        val invokeArgs: MemorySegment
+        if (arguments.isNotEmpty()) {
+            invokeArgs = arena.allocate(C_POINTER, arguments.size.toLong())
+
+            arguments.forEachIndexed { idx, arg ->
+                invokeArgs.setAtIndex(C_POINTER, idx.toLong(), arg)
+            }
+        } else {
+            invokeArgs = MemorySegment.NULL
+        }
+
+        return Dart_Invoke(
+            target,
+            Dart_NewStringFromCString(arena.allocateFrom(symbol)),
+            arguments.size,
+            invokeArgs
+        )
     }
 
     val mainIsolateHasOutstandingMessages: Boolean

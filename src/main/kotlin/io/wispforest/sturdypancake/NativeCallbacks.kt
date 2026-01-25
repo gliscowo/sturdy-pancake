@@ -1,6 +1,9 @@
 package io.wispforest.sturdypancake
 
 import io.wispforest.sturdypancake.bindings.DartBindings.*
+import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.Component
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
@@ -15,17 +18,20 @@ import java.lang.reflect.Modifier
 object NativeCallbacks {
 
     @JvmStatic
-    fun setupIsolate(): Unit = Arena.ofConfined().use { arena ->
+    fun setupIsolate() {
         if (!SturdyPancake.dartEnvironmentInitialized) {
             return
         }
 
-        val internalLibrary = Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("dart:_internal")))
-        val printClosure = Dart_GetField(SturdyPancake.dartEnvironment.bindingsLibrary, Dart_NewStringFromCString(arena.allocateFrom("_pancakePrint")))
+        val internalLibrary = Dart_LookupLibrary(DartSymbols.INTERNAL_LIBRARY_URI.toDartHandle())
+        val printClosure = Dart_GetField(
+            SturdyPancake.dartEnvironment.bindingsLibrary,
+            DartSymbols.Bindings.PANCAKE_PRINT.toDartHandle()
+        )
 
         Dart_SetField(
             internalLibrary,
-            Dart_NewStringFromCString(arena.allocateFrom("_printClosure")),
+            DartSymbols.PRINT_CLOSURE_FIELD.toDartHandle(),
             printClosure
         )
     }
@@ -38,7 +44,7 @@ object NativeCallbacks {
         numArgs: Int,
         autoSetupScope: MemorySegment /* bool* */
     ): MemorySegment /* Dart_NativeFunction */ {
-        val funcName = dartStringToJavaString(name)
+        val funcName = name.getDartString()
         if (!funcName.startsWith("::")) {
             return MemorySegment.NULL
         }
@@ -109,7 +115,7 @@ object NativeCallbacks {
 
         val upcallHandle = MethodHandles.lookup().findStatic(
             NativeCallbacks::class.java,
-            "invokeMethodHandleWithNativeArguments",
+            ::invokeMethodHandleWithNativeArguments.name,
             MethodType.methodType(
                 Void.TYPE,
                 MemorySegment::class.java,
@@ -136,7 +142,7 @@ object NativeCallbacks {
             val javaArgs = mutableListOf<Any?>()
             repeat(Dart_GetNativeArgumentCount(arguments)) { idx ->
                 javaArgs.add(
-                    dartHandleToJavaObject(
+                    tryConvertToJavaInstance(
                         Dart_GetNativeArgument(arguments, idx),
                         targetType = targetHandle.type().parameterType(idx)
                     )
@@ -145,12 +151,15 @@ object NativeCallbacks {
 
             val result = targetHandle.invokeWithArguments(javaArgs)
             if (targetHandle.type().returnType() != Void.TYPE) {
-                Dart_SetReturnValue(arguments, javaObjectToDartHandle(result))
+                Dart_SetReturnValue(arguments, tryConvertToDartInstance(result))
             }
         } catch (e: Throwable) {
             SturdyPancake.LOGGER.error("failed to run method handle with native arguments", e)
             Arena.ofConfined().use { arena ->
-                Dart_SetReturnValue(arguments, Dart_NewApiError(arena.allocateFrom(e.message ?: "no exception message")))
+                Dart_SetReturnValue(
+                    arguments,
+                    Dart_NewApiError(arena.allocateFrom(e.message ?: "no exception message"))
+                )
             }
         }
     }
@@ -167,16 +176,17 @@ object NativeCallbacks {
         }
     }
 
-    private val DART_LOGGER = LoggerFactory.getLogger("dartvm")
+    @JvmStatic
+    fun getLogger(name: String): Logger = LoggerFactory.getLogger(name)
 
     @JvmStatic
-    fun printToLogger(line: String) {
-        DART_LOGGER.info(line)
+    fun notifyReloadComplete() {
+        Minecraft.getInstance().gui.chat.addMessage(Component.translatable("text.sturdypancake.hot_reload_complete"));
     }
 
     @JvmStatic
     fun setLambdaType(handle: KDartHandle, targetType: String): KDartHandle {
-       Dart_SetPeer(handle.pointer, Arena.global().allocateFrom(targetType))
-       return handle
+        Dart_SetPeer(handle.pointer, Arena.global().allocateFrom(targetType))
+        return handle
     }
 }

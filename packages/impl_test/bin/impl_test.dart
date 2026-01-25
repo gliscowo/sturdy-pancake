@@ -12,7 +12,7 @@ void main() async {
 
   HudElementRegistry.addLast(
     Identifier.fromNamespaceAndPath('sturdy-pancake', 'a_dart_hud_element'),
-    BraidHudElement(Center(Label.literal('braid moment????'))),
+    BraidHudElement(Align(Alignment.top, Label.literal('braid moment????'))),
   );
 
   ClientSendMessageEvents.chat.register(
