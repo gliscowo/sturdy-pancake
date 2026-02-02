@@ -1,12 +1,15 @@
 {
-	"required": true,
-	"package": "io.wispforest.sturdypancake.mixin",
-	"compatibilityLevel": "JAVA_21",
-	"mixins": [],
-	"injectors": {
-		"defaultRequire": 1
-	},
-	"overwrites": {
-		"requireAnnotations": true
-	}
+  "required": true,
+  "package": "io.wispforest.sturdypancake.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "RecipeManagerAccessor",
+    "SimpleJsonResourceReloadListenerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
 }
