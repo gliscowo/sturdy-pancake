@@ -31,15 +31,6 @@ data class DartEnvironment(
         }
     }
 
-//    fun <T> scope(block: DartEnvironment.() -> T): T {
-//        try {
-//            Dart_EnterScope()
-//            return block()
-//        } finally {
-//            Dart_ExitScope()
-//        }
-//    }
-
     fun invoke(
         symbol: String,
         vararg arguments: MemorySegment,

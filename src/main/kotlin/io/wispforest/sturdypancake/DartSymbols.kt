@@ -10,7 +10,8 @@ object DartSymbols {
         const val ID_OF_JAVA_OBJECT = "_idOfJavaObject"
 
         const val MAP_FROM_LISTS = "_mapFromLists"
-        const val PANCAKE_PRINT = "_pancakePrint"
+        const val JSON_MAP_FROM_LISTS = "_jsonMapFromLists"
+        const val PRINT_TO_LOGGER = "_printToLogger"
         const val REQUEST_HOT_RELOAD = "_requestHotReload"
     }
 }

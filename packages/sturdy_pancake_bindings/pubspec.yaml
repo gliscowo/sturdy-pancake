@@ -3,12 +3,16 @@ description: A starting point for Dart libraries or applications.
 version: 1.0.0
 # repository: https://github.com/my_org/my_repo
 
+publish_to: none
+
 environment:
   sdk: ^3.10.3
 
 # Add regular dependencies here.
 dependencies:
   vm_service: ^15.0.2
+  syrup:
+    path: ../syrup
   # path: ^1.9.0
 
 dev_dependencies:

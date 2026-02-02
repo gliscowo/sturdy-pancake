@@ -18,7 +18,8 @@ import kotlin.io.path.pathString
 
 object SturdyPancake : ModInitializer {
 
-    val LOGGER: Logger = LoggerFactory.getLogger("sturdy-pancake")
+    const val MOD_ID = "sturdy-pancake"
+    val LOGGER: Logger = LoggerFactory.getLogger(MOD_ID)
 
     lateinit var dartEnvironment: DartEnvironment
         private set
@@ -37,7 +38,7 @@ object SturdyPancake : ModInitializer {
             LOGGER.info("installed shared library")
 
             val dylibAsset =
-                FabricLoader.getInstance().getModContainer("sturdy-pancake").get().findPath("libdart_dll.so").get()
+                FabricLoader.getInstance().getModContainer(MOD_ID).get().findPath("libdart_dll.so").get()
             Files.copy(dylibAsset, dylibPath)
         }
 
@@ -52,7 +53,8 @@ object SturdyPancake : ModInitializer {
             DartDllConfig.start_service_isolate(config, true)
             DartDllConfig.service_port(config, 6767)
             DartDllConfig.isolate_setup_callback(
-                config, upcallPointerFor(
+                config,
+                upcallPointerFor(
                     NativeCallbacks::setupIsolate,
                     null,
                     listOf()
@@ -91,7 +93,7 @@ object SturdyPancake : ModInitializer {
             )
 
             val bindingsLibrary =
-                Dart_NewPersistentHandle(Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("package:sturdy_pancake_bindings/src/core.dart"))))
+                Dart_NewPersistentHandle(Dart_LookupLibrary(Dart_NewStringFromCString(arena.allocateFrom("package:sturdy_pancake_bindings/sturdy_pancake_bindings.dart"))))
             Dart_SetNativeResolver(bindingsLibrary, bindingsResolver, MemorySegment.NULL)
 
             dartEnvironment = DartEnvironment(

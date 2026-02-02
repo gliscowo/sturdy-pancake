@@ -26,7 +26,7 @@ object NativeCallbacks {
         val internalLibrary = Dart_LookupLibrary(DartSymbols.INTERNAL_LIBRARY_URI.toDartHandle())
         val printClosure = Dart_GetField(
             SturdyPancake.dartEnvironment.bindingsLibrary,
-            DartSymbols.Bindings.PANCAKE_PRINT.toDartHandle()
+            DartSymbols.Bindings.PRINT_TO_LOGGER.toDartHandle()
         )
 
         Dart_SetField(

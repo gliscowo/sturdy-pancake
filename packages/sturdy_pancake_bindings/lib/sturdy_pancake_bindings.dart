@@ -1,6 +1,17 @@
-/// Support for doing something awesome.
-///
-/// More dartdocs go here.
-library;
+import 'dart:developer';
+import 'dart:ffi';
+import 'dart:isolate';
 
-export 'src/core.dart';
+import 'package:syrup/syrup.dart';
+import 'package:vm_service/vm_service.dart' hide Isolate;
+import 'package:vm_service/vm_service_io.dart';
+
+// we build the bindings library with part instead
+// of export directives because we otherwise have
+// a much harder time calling into entrypoints
+// spread across files
+
+part 'src/core.dart';
+part 'src/hot_reload.dart';
+part 'src/logging.dart';
+part 'src/recipe.dart';
