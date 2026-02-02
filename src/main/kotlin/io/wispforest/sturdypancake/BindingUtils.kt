@@ -143,7 +143,7 @@ fun MemorySegment.getDartMap(): Map<Any?, Any?> = Arena.ofConfined().use { arena
 
     val entries = mutableListOf<Pair<Any?, Any?>>()
     repeat(keyListLength.get(ValueLayout.JAVA_LONG, 0).toInt()) { idx ->
-        val keyHandle = Dart_ListGetAt(this, idx.toLong())
+        val keyHandle = Dart_ListGetAt(keyList, idx.toLong())
         entries.add(
             tryConvertToJavaInstance(keyHandle) to tryConvertToJavaInstance(
                 Dart_MapGetAt(this, keyHandle)
