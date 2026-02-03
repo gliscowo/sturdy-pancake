@@ -6,10 +6,10 @@ bool includeRecipe(String recipeId) {
 }
 
 @entryPoint
-void rewriteRecipe(String recipeId, Object? recipeJson) {
+bool rewriteRecipe(String recipeId, Object? recipeJson) {
   final rule = forType<Ingredient>(
     remap(const TagIngredient(.minecraft(path: 'planks')), const ItemIngredient(.minecraft(path: 'cooked_beef'))),
   );
 
-  rewrite(recipeJson, recipeType, rule);
+  return rewrite(recipeJson, recipeType, rule);
 }

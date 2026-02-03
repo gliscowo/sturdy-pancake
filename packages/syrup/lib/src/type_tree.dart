@@ -60,19 +60,28 @@ extension type const Location._(List<LocationSegment> segments) {
 
 // ---
 
-const _noUpdateSentinel = Object();
+const _keepValueSentinel = Object();
 
-void rewrite(Object? json, TypeTreeNode type, RewriteRule rewriteRule) =>
-    _rewrite(json, const Location(), type, rewriteRule);
+bool rewrite(Object? json, TypeTreeNode type, RewriteRule rewriteRule) {
+  var anyModifications = false;
+  _rewrite(json, const Location(), type, rewriteRule, () => anyModifications = true);
+  return anyModifications;
+}
 
-Object? _rewrite(Object? json, Location location, TypeTreeNode type, RewriteRule rewriteRule) {
+Object? _rewrite(
+  Object? json,
+  Location location,
+  TypeTreeNode type,
+  RewriteRule rewriteRule,
+  void Function() markModified,
+) {
   switch (type) {
     case ListNode(:final elementType) when json is List<dynamic>:
       Map<int, Object?>? replacements;
 
       for (final (idx, element) in json.indexed) {
-        final result = _rewrite(element, location.andIndex(idx), elementType, rewriteRule);
-        if (!identical(result, _noUpdateSentinel)) {
+        final result = _rewrite(element, location.andIndex(idx), elementType, rewriteRule, markModified);
+        if (!identical(result, _keepValueSentinel)) {
           (replacements ??= {})[idx] = result;
         }
       }
@@ -83,14 +92,14 @@ Object? _rewrite(Object? json, Location location, TypeTreeNode type, RewriteRule
         }
       }
 
-      return _noUpdateSentinel;
+      return _keepValueSentinel;
 
     case MapNode(:final valueType) when json is Map<String, dynamic>:
       Map<String, Object?>? replacements;
 
       for (final MapEntry(:key, :value) in json.entries) {
-        final result = _rewrite(value, location.andKey(key), valueType, rewriteRule);
-        if (!identical(result, _noUpdateSentinel)) {
+        final result = _rewrite(value, location.andKey(key), valueType, rewriteRule, markModified);
+        if (!identical(result, _keepValueSentinel)) {
           (replacements ??= {})[key] = result;
         }
       }
@@ -101,37 +110,44 @@ Object? _rewrite(Object? json, Location location, TypeTreeNode type, RewriteRule
         }
       }
 
-      return _noUpdateSentinel;
+      return _keepValueSentinel;
 
     case ObjectNode(:final fields):
       final jsonObject = json as Map<String, dynamic>;
       for (final MapEntry(key: fieldName, value: fieldType) in fields.entries) {
-        final result = _rewrite(jsonObject[fieldName], location.andKey(fieldName), fieldType, rewriteRule);
-        if (!identical(result, _noUpdateSentinel)) {
+        final result = _rewrite(
+          jsonObject[fieldName],
+          location.andKey(fieldName),
+          fieldType,
+          rewriteRule,
+          markModified,
+        );
+        if (!identical(result, _keepValueSentinel)) {
           jsonObject[fieldName] = result;
         }
       }
 
-      return _noUpdateSentinel;
+      return _keepValueSentinel;
 
     case DispatchNode(:final dispatcher):
       final resolvedType = dispatcher(json);
       if (resolvedType == null) {
-        return _noUpdateSentinel;
+        return _keepValueSentinel;
       }
 
-      return _rewrite(json, location, resolvedType, rewriteRule);
+      return _rewrite(json, location, resolvedType, rewriteRule, markModified);
 
     case MutatorNode mutator:
-      Object? result = _noUpdateSentinel;
+      Object? result = _keepValueSentinel;
       rewriteRule(json, location, mutator, (json) => result = json);
 
-      if (identical(result, _noUpdateSentinel) && mutator.underlying != null) {
-        return _rewrite(json, location, mutator.underlying!, rewriteRule);
+      if (identical(result, _keepValueSentinel) && mutator.underlying != null) {
+        return _rewrite(json, location, mutator.underlying!, rewriteRule, markModified);
       } else {
+        markModified();
         return result;
       }
     case _:
-      return _noUpdateSentinel;
+      return _keepValueSentinel;
   }
 }

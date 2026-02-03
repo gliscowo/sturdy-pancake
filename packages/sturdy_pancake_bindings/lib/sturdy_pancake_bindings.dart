@@ -9,7 +9,7 @@ import 'package:vm_service/vm_service_io.dart';
 // we build the bindings library with part instead
 // of export directives because we otherwise have
 // a much harder time calling into entrypoints
-// spread across files
+// when they're spread across files
 
 part 'src/core.dart';
 part 'src/hot_reload.dart';

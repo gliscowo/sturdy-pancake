@@ -86,13 +86,15 @@ public class SimpleJsonResourceReloadListenerMixin {
         return SturdyPancake.INSTANCE.getDartEnvironment().runInMainIsolate(it -> {
             var dartJson = JsonMarshallingKt.jsonToDartObject(original);
 
-            it.invoke(
+            var anyModifications = it.invoke(
                 "rewriteRecipe",
                 new MemorySegment[]{BindingUtilsKt.toDartHandle(recipeId.toString()), dartJson},
                 it.getBindingsLibrary()
             );
 
-            return JsonMarshallingKt.dartObjectToJson(dartJson);
+            return BindingUtilsKt.getDartBool(anyModifications)
+                ? JsonMarshallingKt.dartObjectToJson(dartJson)
+                : original;
         });
     }
 }
