@@ -39,7 +39,11 @@ fun jsonToDartObject(json: JsonElement): MemorySegment /* Dart_Handle */ {
         return if (primitive.isBoolean) {
             primitive.asBoolean.toDartHandle()
         } else if (primitive.isNumber) {
-            primitive.asNumber.toDouble().toDartHandle()
+            if (primitive.asNumber.toDouble() == primitive.asNumber.toLong().toDouble()) {
+                primitive.asNumber.toLong().toDartHandle()
+            } else {
+                primitive.asNumber.toDouble().toDartHandle()
+            }
         } else {
             primitive.asString.toDartHandle()
         }
