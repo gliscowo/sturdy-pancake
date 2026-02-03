@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:impl_test/bindings.dart';
+import 'package:impl_test/bindings.dart' hide Identifier;
+import 'package:impl_test/bindings.dart' as bindings show Identifier;
 import 'package:sturdy_pancake_bindings/sturdy_pancake_bindings.dart';
 
 late final Minecraft minecraft;
@@ -11,13 +12,16 @@ void main() async {
   minecraft = Minecraft.instance;
 
   HudElementRegistry.addLast(
-    Identifier.fromNamespaceAndPath('sturdy-pancake', 'a_dart_hud_element'),
+    bindings.Identifier.fromNamespaceAndPath('sturdy-pancake', 'a_dart_hud_element'),
     BraidHudElement(Align(Alignment.top, Label.literal('braid moment????'))),
   );
 
   ClientSendMessageEvents.chat.register(
     lambda(onChatMessage, r'net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents$Chat'),
   );
+
+  addRecipeExclusion(matchRegex('.*from_smelting.*'));
+  addRecipeRewriteRule(allRecipes(), forType<Ingredient>(remap(const .tag(.minecraft(path: 'planks')), .tag(.minecraft(path: 'logs')))));
 }
 
 void onChatMessage(String message) {

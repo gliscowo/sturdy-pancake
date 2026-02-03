@@ -6,6 +6,8 @@ import 'package:syrup/syrup.dart';
 import 'package:vm_service/vm_service.dart' hide Isolate;
 import 'package:vm_service/vm_service_io.dart';
 
+export 'package:syrup/syrup.dart';
+
 // we build the bindings library with part instead
 // of export directives because we otherwise have
 // a much harder time calling into entrypoints

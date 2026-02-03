@@ -29,10 +29,14 @@ sealed class Ingredient {
   Object? toJson();
   const Ingredient();
 
+  const factory Ingredient.item(Identifier itemId) = ItemIngredient._;
+  const factory Ingredient.tag(Identifier tagId) = TagIngredient._;
+  const factory Ingredient.list(List<Identifier> itemIds) = ListIngredient._;
+
   factory Ingredient.fromJson(Object? json) => switch (json) {
-    String id when !id.startsWith('#') => ItemIngredient(Identifier.parse(id)),
-    String tagId => TagIngredient(Identifier.parse(tagId.substring(1))),
-    List<dynamic> ids when ids.every((element) => element is String) => ListIngredient([
+    String id when !id.startsWith('#') => .item(Identifier.parse(id)),
+    String tagId => .tag(Identifier.parse(tagId.substring(1))),
+    List<dynamic> ids when ids.every((element) => element is String) => .list([
       for (String id in ids) Identifier.parse(id),
     ]),
     _ => throw 'unsupported identifier format',
@@ -41,7 +45,7 @@ sealed class Ingredient {
 
 final class ItemIngredient extends Ingredient {
   final Identifier itemId;
-  const ItemIngredient(this.itemId);
+  const ItemIngredient._(this.itemId);
 
   @override
   Object? toJson() => '$itemId';
@@ -55,7 +59,7 @@ final class ItemIngredient extends Ingredient {
 
 final class TagIngredient extends Ingredient {
   final Identifier tagId;
-  const TagIngredient(this.tagId);
+  const TagIngredient._(this.tagId);
 
   @override
   Object? toJson() => '#$tagId';
@@ -69,7 +73,7 @@ final class TagIngredient extends Ingredient {
 
 final class ListIngredient extends Ingredient {
   final List<Identifier> itemIds;
-  const ListIngredient(this.itemIds);
+  const ListIngredient._(this.itemIds);
 
   @override
   Object? toJson() => itemIds.map((id) => id.toString()).toList();
